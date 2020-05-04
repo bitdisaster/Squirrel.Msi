@@ -14,8 +14,8 @@ MSQ is a set of tools to accomplish auto-updating with MSI used by Electron Apps
 
 For the longest time MSI was the gold standard in packaging and installing Windows applications.  That doesn't mean that they cant be auto-updated. The only functionality from the original Windows.Squirrel carried over is the updating process. Packaging and managing of shortcuts is of course done MSI.
 
-* **Auto-Updating** MSQ can provides auto-updating for Apps packaged  with electron-wix-msu V3
-* **Compatibility** App updates packaged with Windows.Squirrel can be installed by MSQ
+* **Auto-Updating** MSQ provides auto-updating for Apps packaged  with [electron-wix-msi V3](https://github.com/felixrieseberg/electron-wix-msi)
+* **Compatibility** App updates packaged with [Windows.Squirrel](https://github.com/Squirrel/Squirrel.Windows) can be updated by MSQ
 
 ## Building Squirrel
 For the impatient:
