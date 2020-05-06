@@ -2,7 +2,7 @@
 |:---|
 
 
-# MSQ: Short for MSI Squirrel is a special version of Squirrel.Windows to work with MSI
+# MSQ: Short for MSI Squirrel, is a special version of Squirrel.Windows to work with electron-wix-msi
 
 ![](docs/artwork/Squirrel-Logo.png)
 
