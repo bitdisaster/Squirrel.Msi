@@ -26,13 +26,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
     <PackageReference Include="Splat" Version="1.6.2.0" />
     <PackageReference Include="WpfAnimatedGif" Version="1.4.15.0" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="ILRepack" Version="1.26.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
 
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
