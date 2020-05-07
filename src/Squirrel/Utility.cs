@@ -1,35 +1,31 @@
-﻿using System;
+﻿using NuGet;
+using Splat;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Security.AccessControl;
 using System.Security.Cryptography;
-using System.Security.Principal;
-using System.Threading;
-using Splat;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Net;
-using NuGet;
 
 namespace Squirrel
 {
     static class Utility
     {
-        public static string RemoveByteOrderMarkerIfPresent(string content)
-        {
-            return string.IsNullOrEmpty(content) ? 
+        public static string RemoveByteOrderMarkerIfPresent(string content) {
+            return string.IsNullOrEmpty(content) ?
                 string.Empty : RemoveByteOrderMarkerIfPresent(Encoding.UTF8.GetBytes(content));
         }
 
-        public static string RemoveByteOrderMarkerIfPresent(byte[] content)
-        {
+        public static string RemoveByteOrderMarkerIfPresent(byte[] content) {
             byte[] output = { };
 
             if (content == null) {
@@ -70,22 +66,19 @@ namespace Squirrel
             return Encoding.UTF8.GetString(output);
         }
 
-        public static IEnumerable<FileInfo> GetAllFilesRecursively(this DirectoryInfo rootPath)
-        {
+        public static IEnumerable<FileInfo> GetAllFilesRecursively(this DirectoryInfo rootPath) {
             Contract.Requires(rootPath != null);
 
             return rootPath.EnumerateFiles("*", SearchOption.AllDirectories);
         }
 
-        public static IEnumerable<string> GetAllFilePathsRecursively(string rootPath)
-        {
+        public static IEnumerable<string> GetAllFilePathsRecursively(string rootPath) {
             Contract.Requires(rootPath != null);
 
             return Directory.EnumerateFiles(rootPath, "*", SearchOption.AllDirectories);
         }
 
-        public static string CalculateFileSHA1(string filePath)
-        {
+        public static string CalculateFileSHA1(string filePath) {
             Contract.Requires(filePath != null);
 
             using (var stream = File.OpenRead(filePath)) {
@@ -93,8 +86,7 @@ namespace Squirrel
             }
         }
 
-        public static string CalculateStreamSHA1(Stream file)
-        {
+        public static string CalculateStreamSHA1(Stream file) {
             Contract.Requires(file != null && file.CanRead);
 
             using (var sha1 = SHA1.Create()) {
@@ -102,8 +94,7 @@ namespace Squirrel
             }
         }
 
-        public static WebClient CreateWebClient()
-        {
+        public static WebClient CreateWebClient() {
             // WHY DOESNT IT JUST DO THISSSSSSSS
             System.Net.ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
 
@@ -117,8 +108,7 @@ namespace Squirrel
             return ret;
         }
 
-        public static async Task CopyToAsync(string from, string to)
-        {
+        public static async Task CopyToAsync(string from, string to) {
             Contract.Requires(!String.IsNullOrEmpty(from) && File.Exists(from));
             Contract.Requires(!String.IsNullOrEmpty(to));
 
@@ -133,8 +123,7 @@ namespace Squirrel
             await Task.Run(() => File.Copy(from, to, true));
         }
 
-        public static void Retry(this Action block, int retries = 2)
-        {
+        public static void Retry(this Action block, int retries = 2) {
             Contract.Requires(retries > 0);
 
             Func<object> thunk = () => {
@@ -145,8 +134,7 @@ namespace Squirrel
             thunk.Retry(retries);
         }
 
-        public static T Retry<T>(this Func<T> block, int retries = 2)
-        {
+        public static T Retry<T>(this Func<T> block, int retries = 2) {
             Contract.Requires(retries > 0);
 
             while (true) {
@@ -164,10 +152,9 @@ namespace Squirrel
             }
         }
 
-        public static Task<Tuple<int, string>> InvokeProcessAsync(string fileName, string arguments, CancellationToken ct, string workingDirectory = "")
-        {
+        public static Task<Tuple<int, string>> InvokeProcessAsync(string fileName, string arguments, CancellationToken ct, string workingDirectory = "") {
             var psi = new ProcessStartInfo(fileName, arguments);
-            if (Environment.OSVersion.Platform != PlatformID.Win32NT && fileName.EndsWith (".exe", StringComparison.OrdinalIgnoreCase)) {
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT && fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) {
                 psi = new ProcessStartInfo("wine", fileName + " " + arguments);
             }
 
@@ -182,8 +169,7 @@ namespace Squirrel
             return InvokeProcessAsync(psi, ct);
         }
 
-        public static async Task<Tuple<int, string>> InvokeProcessAsync(ProcessStartInfo psi, CancellationToken ct)
-        {
+        public static async Task<Tuple<int, string>> InvokeProcessAsync(ProcessStartInfo psi, CancellationToken ct) {
             var pi = Process.Start(psi);
             await Task.Run(() => {
                 while (!ct.IsCancellationRequested) {
@@ -208,13 +194,11 @@ namespace Squirrel
             return Tuple.Create(pi.ExitCode, textResult.Trim());
         }
 
-        public static Task ForEachAsync<T>(this IEnumerable<T> source, Action<T> body, int degreeOfParallelism = 4)
-        {
+        public static Task ForEachAsync<T>(this IEnumerable<T> source, Action<T> body, int degreeOfParallelism = 4) {
             return ForEachAsync(source, x => Task.Run(() => body(x)), degreeOfParallelism);
         }
 
-        public static Task ForEachAsync<T>(this IEnumerable<T> source, Func<T, Task> body, int degreeOfParallelism = 4)
-        {
+        public static Task ForEachAsync<T>(this IEnumerable<T> source, Func<T, Task> body, int degreeOfParallelism = 4) {
             return Task.WhenAll(
                 from partition in Partitioner.Create(source).GetPartitions(degreeOfParallelism)
                 select Task.Run(async () => {
@@ -232,8 +216,7 @@ namespace Squirrel
                     .ToString();
         });
 
-        internal static string tempNameForIndex(int index, string prefix)
-        {
+        internal static string tempNameForIndex(int index, string prefix) {
             if (index < directoryChars.Value.Length) {
                 return prefix + directoryChars.Value[index];
             }
@@ -241,8 +224,7 @@ namespace Squirrel
             return prefix + directoryChars.Value[index % directoryChars.Value.Length] + tempNameForIndex(index / directoryChars.Value.Length, "");
         }
 
-        public static DirectoryInfo GetTempDirectory(string localAppDirectory)
-        {
+        public static DirectoryInfo GetTempDirectory(string localAppDirectory) {
             var tempDir = Environment.GetEnvironmentVariable("SQUIRREL_TEMP");
             tempDir = tempDir ?? Path.Combine(localAppDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SquirrelTemp");
 
@@ -252,12 +234,11 @@ namespace Squirrel
             return di;
         }
 
-        public static IDisposable WithTempDirectory(out string path, string localAppDirectory = null)
-        {
+        public static IDisposable WithTempDirectory(out string path, string localAppDirectory = null) {
             var di = GetTempDirectory(localAppDirectory);
             var tempDir = default(DirectoryInfo);
 
-            var names = Enumerable.Range(0, 1<<20).Select(x => tempNameForIndex(x, "temp"));
+            var names = Enumerable.Range(0, 1 << 20).Select(x => tempNameForIndex(x, "temp"));
 
             foreach (var name in names) {
                 var target = Path.Combine(di.FullName, name);
@@ -274,10 +255,9 @@ namespace Squirrel
             return Disposable.Create(() => Task.Run(async () => await DeleteDirectory(tempDir.FullName)).Wait());
         }
 
-        public static IDisposable WithTempFile(out string path, string localAppDirectory = null)
-        {
+        public static IDisposable WithTempFile(out string path, string localAppDirectory = null) {
             var di = GetTempDirectory(localAppDirectory);
-            var names = Enumerable.Range(0, 1<<20).Select(x => tempNameForIndex(x, "temp"));
+            var names = Enumerable.Range(0, 1 << 20).Select(x => tempNameForIndex(x, "temp"));
 
             path = "";
             foreach (var name in names) {
@@ -292,8 +272,7 @@ namespace Squirrel
             return Disposable.Create(() => File.Delete(thePath));
         }
 
-        public static async Task DeleteDirectory(string directoryPath)
-        {
+        public static async Task DeleteDirectory(string directoryPath) {
             Contract.Requires(!String.IsNullOrEmpty(directoryPath));
 
             Log().Debug("Starting to delete folder: {0}", directoryPath);
@@ -341,8 +320,7 @@ namespace Squirrel
             }
         }
 
-        public static string FindHelperExecutable(string toFind, IEnumerable<string> additionalDirs = null)
-        {
+        public static string FindHelperExecutable(string toFind, IEnumerable<string> additionalDirs = null) {
             additionalDirs = additionalDirs ?? Enumerable.Empty<string>();
             var dirs = (new[] { Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) })
                 .Concat(additionalDirs ?? Enumerable.Empty<string>());
@@ -353,8 +331,7 @@ namespace Squirrel
                 .FirstOrDefault(x => File.Exists(x)) ?? exe;
         }
 
-        static string find7Zip()
-        {
+        static string find7Zip() {
             if (ModeDetector.InUnitTestRunner()) {
                 var vendorDir = Path.Combine(
                     Path.GetDirectoryName(Assembly.GetExecutingAssembly().CodeBase.Replace("file:///", "")),
@@ -367,8 +344,7 @@ namespace Squirrel
             }
         }
 
-        public static async Task ExtractZipToDirectory(string zipFilePath, string outFolder)
-        {
+        public static async Task ExtractZipToDirectory(string zipFilePath, string outFolder) {
             var sevenZip = find7Zip();
             var result = default(Tuple<int, string>);
 
@@ -388,8 +364,7 @@ namespace Squirrel
             }
         }
 
-        public static async Task CreateZipFromDirectory(string zipFilePath, string inFolder)
-        {
+        public static async Task CreateZipFromDirectory(string zipFilePath, string inFolder) {
             var sevenZip = find7Zip();
             var result = default(Tuple<int, string>);
 
@@ -409,28 +384,23 @@ namespace Squirrel
             }
         }
 
-        public static string AppDirForRelease(string rootAppDirectory, ReleaseEntry entry)
-        {
+        public static string AppDirForRelease(string rootAppDirectory, ReleaseEntry entry) {
             return Path.Combine(rootAppDirectory, "app-" + entry.Version.ToString());
         }
 
-        public static string AppDirForVersion(string rootAppDirectory, SemanticVersion version)
-        {
+        public static string AppDirForVersion(string rootAppDirectory, SemanticVersion version) {
             return Path.Combine(rootAppDirectory, "app-" + version.ToString());
         }
 
-        public static string PackageDirectoryForAppDir(string rootAppDirectory) 
-        {
+        public static string PackageDirectoryForAppDir(string rootAppDirectory) {
             return Path.Combine(rootAppDirectory, "packages");
         }
 
-        public static string LocalReleaseFileForAppDir(string rootAppDirectory)
-        {
+        public static string LocalReleaseFileForAppDir(string rootAppDirectory) {
             return Path.Combine(PackageDirectoryForAppDir(rootAppDirectory), "RELEASES");
         }
 
-        public static IEnumerable<ReleaseEntry> LoadLocalReleases(string localReleaseFile)
-        {
+        public static IEnumerable<ReleaseEntry> LoadLocalReleases(string localReleaseFile) {
             var file = File.OpenRead(localReleaseFile);
 
             // NB: sr disposes file
@@ -438,9 +408,8 @@ namespace Squirrel
                 return ReleaseEntry.ParseReleaseFile(sr.ReadToEnd());
             }
         }
-            
-        public static ReleaseEntry FindCurrentVersion(IEnumerable<ReleaseEntry> localReleases)
-        {
+
+        public static ReleaseEntry FindCurrentVersion(IEnumerable<ReleaseEntry> localReleases) {
             if (!localReleases.Any()) {
                 return null;
             }
@@ -448,20 +417,17 @@ namespace Squirrel
             return localReleases.OrderByDescending(x => x.Version).FirstOrDefault(x => !x.IsDelta);
         }
 
-        static TAcc scan<T, TAcc>(this IEnumerable<T> This, TAcc initialValue, Func<TAcc, T, TAcc> accFunc)
-        {
+        static TAcc scan<T, TAcc>(this IEnumerable<T> This, TAcc initialValue, Func<TAcc, T, TAcc> accFunc) {
             TAcc acc = initialValue;
 
-            foreach (var x in This)
-            {
+            foreach (var x in This) {
                 acc = accFunc(acc, x);
             }
 
             return acc;
         }
 
-        public static bool IsHttpUrl(string urlOrPath)
-        {
+        public static bool IsHttpUrl(string urlOrPath) {
             var uri = default(Uri);
             if (!Uri.TryCreate(urlOrPath, UriKind.Absolute, out uri)) {
                 return false;
@@ -470,8 +436,7 @@ namespace Squirrel
             return uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps;
         }
 
-        public static Uri AppendPathToUri(Uri uri, string path)
-        {
+        public static Uri AppendPathToUri(Uri uri, string path) {
             var builder = new UriBuilder(uri);
             if (!builder.Path.EndsWith("/")) {
                 builder.Path += "/";
@@ -481,13 +446,11 @@ namespace Squirrel
             return builder.Uri;
         }
 
-        public static Uri EnsureTrailingSlash(Uri uri)
-        {
+        public static Uri EnsureTrailingSlash(Uri uri) {
             return AppendPathToUri(uri, "");
         }
 
-        public static Uri AddQueryParamsToUri(Uri uri, IEnumerable<KeyValuePair<string, string>> newQuery)
-        {
+        public static Uri AddQueryParamsToUri(Uri uri, IEnumerable<KeyValuePair<string, string>> newQuery) {
             var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
 
             foreach (var entry in newQuery) {
@@ -500,8 +463,7 @@ namespace Squirrel
             return builder.Uri;
         }
 
-        public static void DeleteFileHarder(string path, bool ignoreIfFails = false)
-        {
+        public static void DeleteFileHarder(string path, bool ignoreIfFails = false) {
             try {
                 Retry(() => File.Delete(path), 2);
             } catch (Exception ex) {
@@ -512,8 +474,7 @@ namespace Squirrel
             }
         }
 
-        public static async Task DeleteDirectoryOrJustGiveUp(string dir)
-        {
+        public static async Task DeleteDirectoryOrJustGiveUp(string dir) {
             try {
                 await Utility.DeleteDirectory(dir);
             } catch {
@@ -522,8 +483,7 @@ namespace Squirrel
         }
 
         // http://stackoverflow.com/questions/3111669/how-can-i-determine-the-subsystem-used-by-a-given-net-assembly
-        public static bool ExecutableUsesWin32Subsystem(string peImage)
-        {
+        public static bool ExecutableUsesWin32Subsystem(string peImage) {
             using (var s = new FileStream(peImage, FileMode.Open, FileAccess.Read)) {
                 var rawPeSignatureOffset = new byte[4];
                 s.Seek(0x3c, SeekOrigin.Begin);
@@ -553,14 +513,12 @@ namespace Squirrel
         }
 
         readonly static string[] peExtensions = new[] { ".exe", ".dll", ".node" };
-        public static bool FileIsLikelyPEImage(string name)
-        {
+        public static bool FileIsLikelyPEImage(string name) {
             var ext = Path.GetExtension(name);
             return peExtensions.Any(x => ext.Equals(x, StringComparison.OrdinalIgnoreCase));
         }
 
-        public static bool IsFileTopLevelInPackage(string fullName, string pkgPath)
-        {
+        public static bool IsFileTopLevelInPackage(string fullName, string pkgPath) {
             var fn = fullName.ToLowerInvariant();
             var pkg = pkgPath.ToLowerInvariant();
             var relativePath = fn.Replace(pkg, "");
@@ -569,109 +527,99 @@ namespace Squirrel
             return relativePath.Split(Path.DirectorySeparatorChar).Length == 4;
         }
 
-        public static void LogIfThrows(this IFullLogger This, LogLevel level, string message, Action block)
-        {
+        public static void LogIfThrows(this IFullLogger This, LogLevel level, string message, Action block) {
             try {
                 block();
             } catch (Exception ex) {
                 switch (level) {
-                case LogLevel.Debug:
-                    This.DebugException(message ?? "", ex);
-                    break;
-                case LogLevel.Info:
-                    This.InfoException(message ?? "", ex);
-                    break;
-                case LogLevel.Warn:
-                    This.WarnException(message ?? "", ex);
-                    break;
-                case LogLevel.Error:
-                    This.ErrorException(message ?? "", ex);
-                    break;
+                    case LogLevel.Debug:
+                        This.DebugException(message ?? "", ex);
+                        break;
+                    case LogLevel.Info:
+                        This.InfoException(message ?? "", ex);
+                        break;
+                    case LogLevel.Warn:
+                        This.WarnException(message ?? "", ex);
+                        break;
+                    case LogLevel.Error:
+                        This.ErrorException(message ?? "", ex);
+                        break;
                 }
 
                 throw;
             }
         }
 
-        public static async Task LogIfThrows(this IFullLogger This, LogLevel level, string message, Func<Task> block)
-        {
+        public static async Task LogIfThrows(this IFullLogger This, LogLevel level, string message, Func<Task> block) {
             try {
                 await block();
             } catch (Exception ex) {
                 switch (level) {
-                case LogLevel.Debug:
-                    This.DebugException(message ?? "", ex);
-                    break;
-                case LogLevel.Info:
-                    This.InfoException(message ?? "", ex);
-                    break;
-                case LogLevel.Warn:
-                    This.WarnException(message ?? "", ex);
-                    break;
-                case LogLevel.Error:
-                    This.ErrorException(message ?? "", ex);
-                    break;
+                    case LogLevel.Debug:
+                        This.DebugException(message ?? "", ex);
+                        break;
+                    case LogLevel.Info:
+                        This.InfoException(message ?? "", ex);
+                        break;
+                    case LogLevel.Warn:
+                        This.WarnException(message ?? "", ex);
+                        break;
+                    case LogLevel.Error:
+                        This.ErrorException(message ?? "", ex);
+                        break;
                 }
                 throw;
             }
         }
 
-        public static async Task<T> LogIfThrows<T>(this IFullLogger This, LogLevel level, string message, Func<Task<T>> block)
-        {
+        public static async Task<T> LogIfThrows<T>(this IFullLogger This, LogLevel level, string message, Func<Task<T>> block) {
             try {
                 return await block();
             } catch (Exception ex) {
                 switch (level) {
-                case LogLevel.Debug:
-                    This.DebugException(message ?? "", ex);
-                    break;
-                case LogLevel.Info:
-                    This.InfoException(message ?? "", ex);
-                    break;
-                case LogLevel.Warn:
-                    This.WarnException(message ?? "", ex);
-                    break;
-                case LogLevel.Error:
-                    This.ErrorException(message ?? "", ex);
-                    break;
+                    case LogLevel.Debug:
+                        This.DebugException(message ?? "", ex);
+                        break;
+                    case LogLevel.Info:
+                        This.InfoException(message ?? "", ex);
+                        break;
+                    case LogLevel.Warn:
+                        This.WarnException(message ?? "", ex);
+                        break;
+                    case LogLevel.Error:
+                        This.ErrorException(message ?? "", ex);
+                        break;
                 }
                 throw;
             }
         }
 
-        public static void WarnIfThrows(this IEnableLogger This, Action block, string message = null)
-        {
+        public static void WarnIfThrows(this IEnableLogger This, Action block, string message = null) {
             This.Log().LogIfThrows(LogLevel.Warn, message, block);
         }
 
-        public static Task WarnIfThrows(this IEnableLogger This, Func<Task> block, string message = null)
-        {
+        public static Task WarnIfThrows(this IEnableLogger This, Func<Task> block, string message = null) {
             return This.Log().LogIfThrows(LogLevel.Warn, message, block);
         }
 
-        public static Task<T> WarnIfThrows<T>(this IEnableLogger This, Func<Task<T>> block, string message = null)
-        {
+        public static Task<T> WarnIfThrows<T>(this IEnableLogger This, Func<Task<T>> block, string message = null) {
             return This.Log().LogIfThrows(LogLevel.Warn, message, block);
         }
 
-        public static void ErrorIfThrows(this IEnableLogger This, Action block, string message = null)
-        {
+        public static void ErrorIfThrows(this IEnableLogger This, Action block, string message = null) {
             This.Log().LogIfThrows(LogLevel.Error, message, block);
         }
 
-        public static Task ErrorIfThrows(this IEnableLogger This, Func<Task> block, string message = null)
-        {
+        public static Task ErrorIfThrows(this IEnableLogger This, Func<Task> block, string message = null) {
             return This.Log().LogIfThrows(LogLevel.Error, message, block);
         }
 
-        public static Task<T> ErrorIfThrows<T>(this IEnableLogger This, Func<Task<T>> block, string message = null)
-        {
+        public static Task<T> ErrorIfThrows<T>(this IEnableLogger This, Func<Task<T>> block, string message = null) {
             return This.Log().LogIfThrows(LogLevel.Error, message, block);
         }
 
         static IFullLogger logger;
-        static IFullLogger Log()
-        {
+        static IFullLogger Log() {
             return logger ??
                 (logger = Locator.CurrentMutable.GetService<ILogManager>().GetLogger(typeof(Utility)));
         }
@@ -690,22 +638,18 @@ namespace Squirrel
             MOVEFILE_FAIL_IF_NOT_TRACKABLE = 0x00000020
         }
 
-        public static Guid CreateGuidFromHash(string text)
-        {
+        public static Guid CreateGuidFromHash(string text) {
             return CreateGuidFromHash(text, Utility.IsoOidNamespace);
         }
-        public static Guid CreateGuidFromHash(byte[] data)
-        {
+        public static Guid CreateGuidFromHash(byte[] data) {
             return CreateGuidFromHash(data, Utility.IsoOidNamespace);
         }
 
-        public static Guid CreateGuidFromHash(string text, Guid namespaceId)
-        {
+        public static Guid CreateGuidFromHash(string text, Guid namespaceId) {
             return CreateGuidFromHash(Encoding.UTF8.GetBytes(text), namespaceId);
         }
 
-        public static Guid CreateGuidFromHash(byte[] nameBytes, Guid namespaceId)
-        {
+        public static Guid CreateGuidFromHash(byte[] nameBytes, Guid namespaceId) {
             // convert the namespace UUID to network order (step 3)
             byte[] namespaceBytes = namespaceId.ToByteArray();
             SwapByteOrder(namespaceBytes);
@@ -755,30 +699,40 @@ namespace Squirrel
         public static readonly Guid IsoOidNamespace = new Guid("6ba7b812-9dad-11d1-80b4-00c04fd430c8");
 
         // Converts a GUID (expressed as a byte array) to/from network order (MSB-first).
-        static void SwapByteOrder(byte[] guid)
-        {
+        static void SwapByteOrder(byte[] guid) {
             SwapBytes(guid, 0, 3);
             SwapBytes(guid, 1, 2);
             SwapBytes(guid, 4, 5);
             SwapBytes(guid, 6, 7);
         }
 
-        static void SwapBytes(byte[] guid, int left, int right)
-        {
+        static void SwapBytes(byte[] guid, int left, int right) {
             byte temp = guid[left];
             guid[left] = guid[right];
             guid[right] = temp;
+        }
+
+        public static Tuple<bool, dynamic> GetInstallInfo(string installInfoFile) {
+            if (File.Exists(installInfoFile)) {
+                try {
+                    return new Tuple<bool, dynamic>(true, Json.SimpleJson.DeserializeObject(File.ReadAllText(installInfoFile)));
+                } catch (Exception ex) {
+                    Log().ErrorException("GetInstallInfo: Failed to read installInfo file", ex);
+                }
+            } else {
+                Log().Error($"GetInstallInfo: installInfo file not found. {installInfoFile}");
+            }
+            return new Tuple<bool, dynamic>(false, null);
         }
     }
 
     static unsafe class UnsafeUtility
     {
-        public static List<Tuple<string, int>> EnumerateProcesses()
-        {
+        public static List<Tuple<string, int>> EnumerateProcesses() {
             int bytesReturned = 0;
             var pids = new int[2048];
 
-            fixed(int* p = pids) {
+            fixed (int* p = pids) {
                 if (!NativeMethods.EnumProcesses((IntPtr)p, sizeof(int) * pids.Length, out bytesReturned)) {
                     throw new Win32Exception("Failed to enumerate processes");
                 }
@@ -813,8 +767,7 @@ namespace Squirrel
     {
         IDisposable handle = null;
 
-        public SingleGlobalInstance(string key, TimeSpan timeOut)
-        {
+        public SingleGlobalInstance(string key, TimeSpan timeOut) {
             if (ModeDetector.InUnitTestRunner()) {
                 return;
             }
@@ -848,8 +801,7 @@ namespace Squirrel
             });
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             if (ModeDetector.InUnitTestRunner()) {
                 return;
             }
@@ -858,8 +810,7 @@ namespace Squirrel
             if (disp != null) disp.Dispose();
         }
 
-        ~SingleGlobalInstance()
-        {
+        ~SingleGlobalInstance() {
             if (handle == null) return;
             throw new AbandonedMutexException("Leaked a Mutex!");
         }
@@ -867,8 +818,7 @@ namespace Squirrel
 
     static class Disposable
     {
-        public static IDisposable Create(Action action)
-        {
+        public static IDisposable Create(Action action) {
             return new AnonDisposable(action);
         }
 
@@ -877,13 +827,11 @@ namespace Squirrel
             static readonly Action dummyBlock = (() => { });
             Action block;
 
-            public AnonDisposable(Action b)
-            {
+            public AnonDisposable(Action b) {
                 block = b;
             }
 
-            public void Dispose()
-            {
+            public void Dispose() {
                 Interlocked.Exchange(ref block, dummyBlock)();
             }
         }

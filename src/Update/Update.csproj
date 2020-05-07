@@ -5,9 +5,13 @@
   <PropertyGroup>
     <TargetFramework>net45</TargetFramework>
     <OutputType>Exe</OutputType>
-    <Description>Update</Description>
+    <Description>An auto-updater for MSI based installation</Description>
     <Title>Update</Title>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>2.0.0</Version>
+    <Authors>Jan Hannemann</Authors>
+    <Product>MSQ</Product>
+    <PackageId>Update</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
     <PackageReference Include="Splat" Version="1.6.2.0" />
     <PackageReference Include="WpfAnimatedGif" Version="1.4.15.0" />
   </ItemGroup>

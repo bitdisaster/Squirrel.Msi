@@ -3,8 +3,6 @@ using Splat;
 using Squirrel.Json;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -16,7 +14,8 @@ using System.Threading.Tasks;
 
 namespace Squirrel.Update
 {
-    enum UpdateAction {
+    enum UpdateAction
+    {
         Unset = 0, Install, Uninstall, Download, Update, Releasify, Shortcut,
         Deshortcut, ProcessStart, UpdateSelf, CheckForUpdate
     }
@@ -25,8 +24,13 @@ namespace Squirrel.Update
     {
         static StartupOption opt;
 
-        public static int Main(string[] args)
-        {
+        public static int Main(string[] args) {
+            //  var appName = getAppNameFromDirectory("C:\\Program Files (x86)\\HelloWix");
+
+            // var mgr = new UpdateManager("http://localhost", appName, "C:\\Program Files (x86)");
+            //mgr.CreateUninstallerRegistryEntry();
+
+
             var pg = new Program();
             try {
                 return pg.main(args);
@@ -38,8 +42,7 @@ namespace Squirrel.Update
             }
         }
 
-        int main(string[] args)
-        {
+        int main(string[] args) {
             try {
                 opt = new StartupOption(args);
             } catch (Exception ex) {
@@ -54,8 +57,8 @@ namespace Squirrel.Update
             // open will actually crash the uninstaller
             bool isUninstalling = opt.updateAction == UpdateAction.Uninstall;
 
-            using (var logger = new SetupLogLogger(isUninstalling, opt.updateAction.ToString()) {Level = LogLevel.Info}) {
-                Locator.CurrentMutable.Register(() => logger, typeof (Splat.ILogger));
+            using (var logger = new SetupLogLogger(isUninstalling, opt.updateAction.ToString()) { Level = LogLevel.Info }) {
+                Locator.CurrentMutable.Register(() => logger, typeof(Splat.ILogger));
 
                 try {
                     return executeCommandLine(args);
@@ -66,8 +69,7 @@ namespace Squirrel.Update
             }
         }
 
-        int executeCommandLine(string[] args)
-        {
+        int executeCommandLine(string[] args) {
             var animatedGifWindowToken = new CancellationTokenSource();
 
 #if !MONO
@@ -81,8 +83,7 @@ namespace Squirrel.Update
 #endif
 
             using (Disposable.Create(() => animatedGifWindowToken.Cancel())) {
-
-                this.Log().Info("Starting Squirrel Updater: " + String.Join(" ", args));
+                this.Log().Info(" Squirrel Updater: " + String.Join(" ", args));
 
                 if (args.Any(x => x.StartsWith("/squirrel", StringComparison.OrdinalIgnoreCase))) {
                     // NB: We're marked as Squirrel-aware, but we don't want to do
@@ -97,98 +98,45 @@ namespace Squirrel.Update
 
                 switch (opt.updateAction) {
 #if !MONO
-                case UpdateAction.Install:
-                    var progressSource = new ProgressSource();
-                    if (!opt.silentInstall) {
-                        AnimatedGifWindow.ShowWindow(TimeSpan.FromSeconds(4), animatedGifWindowToken.Token, progressSource);
-                    }
-
-                    Install(opt.silentInstall, progressSource, Path.GetFullPath(opt.target)).Wait();
-                    animatedGifWindowToken.Cancel();
-                    break;
-                case UpdateAction.Uninstall:
-                    Uninstall().Wait();
-                    break;
-                case UpdateAction.Download:
-                    Console.WriteLine(Download(opt.target).Result);
-                    break;
-                case UpdateAction.Update:
-                    Update(opt.target).Wait();
-                    break;
-                case UpdateAction.CheckForUpdate:
-                    Console.WriteLine(CheckForUpdate(opt.target).Result);
-                    break;
-                case UpdateAction.UpdateSelf:
-                    UpdateSelf().Wait();
-                    break;
-                case UpdateAction.Shortcut:
-                    Shortcut(opt.target, opt.shortcutArgs, opt.processStartArgs, opt.setupIcon);
-                    break;
-                case UpdateAction.Deshortcut:
-                    Deshortcut(opt.target, opt.shortcutArgs);
-                    break;
-                case UpdateAction.ProcessStart:
-                    ProcessStart(opt.processStart, opt.processStartArgs, opt.shouldWait);
-                    break;
+                    case UpdateAction.Install:
+                        this.Log().Warn("Uninstall command not supported in Msi Squirrel");
+                        break;
+                    case UpdateAction.Uninstall:
+                        this.Log().Warn("Uninstall command not supported in Msi Squirrel");
+                        break;
+                    case UpdateAction.Download:
+                        Console.WriteLine(Download(opt.target).Result);
+                        break;
+                    case UpdateAction.Update:
+                        Update(opt.target).Wait();
+                        break;
+                    case UpdateAction.CheckForUpdate:
+                        Console.WriteLine(CheckForUpdate(opt.target).Result);
+                        break;
+                    case UpdateAction.UpdateSelf:
+                        UpdateSelf().Wait();
+                        break;
+                    case UpdateAction.Shortcut:
+                        this.Log().Warn("Shortcut command not supported in Msi Squirrel");
+                        break;
+                    case UpdateAction.Deshortcut:
+                        this.Log().Warn("Deshortcut command not supported in Msi Squirrel");
+                        break;
+                    case UpdateAction.ProcessStart:
+                        this.Log().Warn("ProcessStart command not supported in Msi Squirrel");
+                        break;
 #endif
-                case UpdateAction.Releasify:
-                    Releasify(opt.target, opt.releaseDir, opt.packagesDir, opt.bootstrapperExe, opt.backgroundGif, opt.signingParameters, opt.baseUrl, opt.setupIcon, !opt.noMsi, opt.packageAs64Bit, opt.frameworkVersion, !opt.noDelta);
-                    break;
+                    case UpdateAction.Releasify:
+                        this.Log().Warn("Releasify command not supported in Msi Squirrel");
+                        // Releasify(opt.target, opt.releaseDir, opt.packagesDir, opt.bootstrapperExe, opt.backgroundGif, opt.signingParameters, opt.baseUrl, opt.setupIcon, !opt.noMsi, opt.packageAs64Bit, opt.frameworkVersion, !opt.noDelta);
+                        break;
                 }
             }
             this.Log().Info("Finished Squirrel Updater");
             return 0;
         }
 
-        public async Task Install(bool silentInstall, ProgressSource progressSource, string sourceDirectory = null)
-        {
-            sourceDirectory = sourceDirectory ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            var releasesPath = Path.Combine(sourceDirectory, "RELEASES");
-
-            this.Log().Info("Starting install, writing to {0}", sourceDirectory);
-
-            if (!File.Exists(releasesPath)) {
-                this.Log().Info("RELEASES doesn't exist, creating it at " + releasesPath);
-                var nupkgs = (new DirectoryInfo(sourceDirectory)).GetFiles()
-                    .Where(x => x.Name.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
-                    .Select(x => ReleaseEntry.GenerateFromFile(x.FullName));
-
-                ReleaseEntry.WriteReleaseFile(nupkgs, releasesPath);
-            }
-
-            var ourAppName = ReleaseEntry.ParseReleaseFile(File.ReadAllText(releasesPath, Encoding.UTF8))
-                .First().PackageName;
-
-            using (var mgr = new UpdateManager(sourceDirectory, ourAppName)) {
-                this.Log().Info("About to install to: " + mgr.RootAppDirectory);
-                if (Directory.Exists(mgr.RootAppDirectory)) {
-                    this.Log().Warn("Install path {0} already exists, burning it to the ground", mgr.RootAppDirectory);
-
-                    mgr.KillAllExecutablesBelongingToPackage();
-                    await Task.Delay(500);
-
-                    await this.ErrorIfThrows(() => Utility.DeleteDirectory(mgr.RootAppDirectory),
-                        "Failed to remove existing directory on full install, is the app still running???");
-
-                    this.ErrorIfThrows(() => Utility.Retry(() => Directory.CreateDirectory(mgr.RootAppDirectory), 3),
-                        "Couldn't recreate app directory, perhaps Antivirus is blocking it");
-                }
-
-                Directory.CreateDirectory(mgr.RootAppDirectory);
-
-                var updateTarget = Path.Combine(mgr.RootAppDirectory, "Update.exe");
-                this.ErrorIfThrows(() => File.Copy(Assembly.GetExecutingAssembly().Location, updateTarget, true),
-                    "Failed to copy Update.exe to " + updateTarget);
-
-                await mgr.FullInstall(silentInstall, progressSource.Raise);
-
-                await this.ErrorIfThrows(() => mgr.CreateUninstallerRegistryEntry(),
-                    "Failed to create uninstaller registry entry");
-            }
-        }
-
-        public async Task Update(string updateUrl, string appName = null)
-        {
+        public async Task Update(string updateUrl, string appName = null) {
             appName = appName ?? getAppNameFromDirectory();
 
             this.Log().Info("Starting update, downloading from " + updateUrl);
@@ -215,14 +163,13 @@ namespace Squirrel.Update
 
                 var updateTarget = Path.Combine(mgr.RootAppDirectory, "Update.exe");
 
-                await this.ErrorIfThrows(() =>
-                    mgr.CreateUninstallerRegistryEntry(),
-                    "Failed to create uninstaller registry entry");
+                this.ErrorIfThrows(() =>
+                    mgr.UpdateUninstallerVersionRegistryEntry(),
+                    "Failed to update uninstaller registry entry");
             }
         }
 
-        public async Task UpdateSelf()
-        {
+        public async Task UpdateSelf() {
             waitForParentToExit();
             var src = Assembly.GetExecutingAssembly().Location;
             var updateDotExeForOurPackage = Path.Combine(
@@ -234,8 +181,7 @@ namespace Squirrel.Update
             });
         }
 
-        public async Task<string> Download(string updateUrl, string appName = null)
-        {
+        public async Task<string> Download(string updateUrl, string appName = null) {
             appName = appName ?? getAppNameFromDirectory();
 
             this.Log().Info("Fetching update information, downloading from " + updateUrl);
@@ -258,41 +204,31 @@ namespace Squirrel.Update
             }
         }
 
-        public async Task<string> CheckForUpdate(string updateUrl, string appName = null)
-        {
+        public async Task<string> CheckForUpdate(string updateUrl, string appName = null) {
             appName = appName ?? getAppNameFromDirectory();
 
             this.Log().Info("Fetching update information, downloading from " + updateUrl);
             using (var mgr = new UpdateManager(updateUrl, appName)) {
                 var updateInfo = await mgr.CheckForUpdate(intention: UpdaterIntention.Update, progress: x => Console.WriteLine(x));
                 var releaseNotes = updateInfo.FetchReleaseNotes();
+                var currentVersion = ensureCurrentVersion(updateInfo.CurrentlyInstalledVersion);
 
                 var sanitizedUpdateInfo = new {
-                    currentVersion = updateInfo.CurrentlyInstalledVersion.Version.ToString(),
+                    currentVersion = currentVersion.ToString(),
                     futureVersion = updateInfo.FutureReleaseEntry.Version.ToString(),
-                    releasesToApply = updateInfo.ReleasesToApply.Select(x => new {
-                        version = x.Version.ToString(),
-                        releaseNotes = releaseNotes.ContainsKey(x) ? releaseNotes[x] : "",
-                    }).ToArray(),
+                    releasesToApply = updateInfo.ReleasesToApply
+                        .Where(x => x.Version > currentVersion)
+                        .Select(x => new {
+                            version = x.Version.ToString(),
+                            releaseNotes = releaseNotes.ContainsKey(x) ? releaseNotes[x] : "",
+                        }).ToArray(),
                 };
 
                 return SimpleJson.SerializeObject(sanitizedUpdateInfo);
             }
         }
 
-        public async Task Uninstall(string appName = null)
-        {
-            this.Log().Info("Starting uninstall for app: " + appName);
-
-            appName = appName ?? getAppNameFromDirectory();
-            using (var mgr = new UpdateManager("", appName)) {
-                await mgr.FullUninstall();
-                mgr.RemoveUninstallerRegistryEntry();
-            }
-        }
-
-        public void Releasify(string package, string targetDir = null, string packagesDir = null, string bootstrapperExe = null, string backgroundGif = null, string signingOpts = null, string baseUrl = null, string setupIcon = null, bool generateMsi = true, bool packageAs64Bit = false, string frameworkVersion = null, bool generateDeltas = true)
-        {
+        public void Releasify(string package, string targetDir = null, string packagesDir = null, string bootstrapperExe = null, string backgroundGif = null, string signingOpts = null, string baseUrl = null, string setupIcon = null, bool generateMsi = true, bool packageAs64Bit = false, string frameworkVersion = null, bool generateDeltas = true) {
             ensureConsole();
 
             if (baseUrl != null) {
@@ -412,106 +348,61 @@ namespace Squirrel.Update
             if (signingOpts != null) {
                 signPEFile(targetSetupExe, signingOpts).Wait();
             }
-
-            if (generateMsi) {
-                createMsiPackage(targetSetupExe, new ZipPackage(package), packageAs64Bit).Wait();
-
-                if (signingOpts != null) {
-                    signPEFile(targetSetupExe.Replace(".exe", ".msi"), signingOpts).Wait();
-                }
-            }
         }
 
-        public void Shortcut(string exeName, string shortcutArgs, string processStartArgs, string icon)
-        {
-            if (String.IsNullOrWhiteSpace(exeName)) {
-                ShowHelp();
-                return;
-            }
-
-            var appName = getAppNameFromDirectory();
-            var defaultLocations = ShortcutLocation.StartMenu | ShortcutLocation.Desktop;
-            var locations = parseShortcutLocations(shortcutArgs);
-
-            using (var mgr = new UpdateManager("", appName)) {
-                mgr.CreateShortcutsForExecutable(exeName, locations ?? defaultLocations, false, processStartArgs, icon);
-            }
-        }
-
-        public void Deshortcut(string exeName, string shortcutArgs)
-        {
-            if (String.IsNullOrWhiteSpace(exeName)) {
-                ShowHelp();
-                return;
-            }
-
-            var appName = getAppNameFromDirectory();
-            var defaultLocations = ShortcutLocation.StartMenu | ShortcutLocation.Desktop;
-            var locations = parseShortcutLocations(shortcutArgs);
-
-            using (var mgr = new UpdateManager("", appName)) {
-                mgr.RemoveShortcutsForExecutable(exeName, locations ?? defaultLocations);
-            }
-        }
-
-        public void ProcessStart(string exeName, string arguments, bool shouldWait)
-        {
-            if (String.IsNullOrWhiteSpace(exeName)) {
-                ShowHelp();
-                return;
-            }
-
-            // Find the latest installed version's app dir
-            var appDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            var releases = ReleaseEntry.ParseReleaseFile(
-                File.ReadAllText(Utility.LocalReleaseFileForAppDir(appDir), Encoding.UTF8));
-
-            // NB: We add the hacked up version in here to handle a migration
-            // issue, where versions of Squirrel pre PR #450 will not understand
-            // prerelease tags, so it will end up writing the release name sans
-            // tags. However, the RELEASES file _will_ have them, so we need to look
-            // for directories that match both the real version, and the sanitized
-            // version, giving priority to the former.
-            var latestAppDir = releases
-                .OrderByDescending(x => x.Version)
-                .SelectMany(x => new[] {
-                    Utility.AppDirForRelease(appDir, x),
-                    Utility.AppDirForVersion(appDir, new SemanticVersion(x.Version.Version.Major, x.Version.Version.Minor, x.Version.Version.Build, ""))
-                })
-                .FirstOrDefault(x => Directory.Exists(x));
-
-            // Check for the EXE name they want
-            var targetExe = new FileInfo(Path.Combine(latestAppDir, exeName.Replace("%20", " ")));
-            this.Log().Info("Want to launch '{0}'", targetExe);
-
-            // Check for path canonicalization attacks
-            if (!targetExe.FullName.StartsWith(latestAppDir, StringComparison.Ordinal)) {
-                throw new ArgumentException();
-            }
-
-            if (!targetExe.Exists) {
-                this.Log().Error("File {0} doesn't exist in current release", targetExe);
-                throw new ArgumentException();
-            }
-
-            if (shouldWait) waitForParentToExit();
-
-            try {
-                this.Log().Info("About to launch: '{0}': {1}", targetExe.FullName, arguments ?? "");
-                Process.Start(new ProcessStartInfo(targetExe.FullName, arguments ?? "") { WorkingDirectory = Path.GetDirectoryName(targetExe.FullName) });
-            } catch (Exception ex) {
-                this.Log().ErrorException("Failed to start process", ex);
-            }
-        }
-
-        public void ShowHelp()
-        {
+        public void ShowHelp() {
             ensureConsole();
             opt.WriteOptionDescriptions();
         }
 
-        void waitForParentToExit()
-        {
+        SemanticVersion ensureCurrentVersion(ReleaseEntry currentlyInstalledVersion) {
+            var currentVersionString = currentlyInstalledVersion?.Version != null ? currentlyInstalledVersion.Version.ToString() : "0.0.0";
+            if (currentVersionString == "0.0.0") {
+                this.Log().Info("ensureCurrentVersion: No locally installed release package found. This is likely the first update of an MSI install. Looking for latest version via App folder name.");
+                try {
+                    var appFolderPrefix = "app-";
+                    var subDirs = Directory.EnumerateDirectories(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)).Select(x => new DirectoryInfo(x));
+                    var appDirNames = subDirs
+                        .Where(x => x.Name.StartsWith(appFolderPrefix))
+                        .Where(x => x.GetFiles(".dead").Count() == 0)
+                        .Select(x => x.Name);
+                    var currentVersion = SemanticVersion.Parse(currentVersionString);
+
+                    if (appDirNames.Count() == 0) {
+                        this.Log().Error("ensureCurrentVersion: No App folders found or all marked as .dead. Unable to retrieve version.");
+                    }
+                    foreach (var appDirName in appDirNames) {
+                        SemanticVersion version;
+                        if (SemanticVersion.TryParse(appDirName.Substring(appFolderPrefix.Length, appDirName.Length - appFolderPrefix.Length), out version)) {
+                            currentVersion = version > currentVersion ? version : currentVersion;
+                        }
+                    }
+                    currentVersionString = currentVersion.ToString();
+                } catch (Exception ex) {
+                    this.Log().ErrorException("ensureCurrentVersion: Failed to retrieve latest version via App folder name.", ex);
+                }
+            }
+
+            // If we still have no version then lets look into the installInfo file. This should not happen btw.
+            if (currentVersionString == "0.0.0") {
+                this.Log().Warn("ensureCurrentVersion: No local release package found and version retrieval via App folder naming failed. Looking for version in MSI installInfo file.");
+                var installInfoFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), ".installInfo.json");
+                if (File.Exists(installInfoFile)) {
+                    try {
+                        dynamic x = SimpleJson.DeserializeObject(File.ReadAllText(installInfoFile));
+                        currentVersionString = x.baseVersion;
+                    } catch (Exception ex) {
+                        this.Log().ErrorException("ensureCurrentVersion: Failed to read version from installInfo file. Gonna report version 0.0.0", ex);
+                    }
+                } else {
+                    this.Log().Warn("ensureCurrentVersion: installInfo file not found. Gonna report version 0.0.0");
+                }
+            }
+
+            return SemanticVersion.Parse(currentVersionString);
+        }
+
+        void waitForParentToExit() {
             // Grab a handle the parent process
             var parentPid = NativeMethods.GetParentProcessId();
             var handle = default(IntPtr);
@@ -530,8 +421,7 @@ namespace Squirrel.Update
             }
         }
 
-        async Task<string> createSetupEmbeddedZip(string fullPackage, string releasesDir, string backgroundGif, string signingOpts, string setupIcon)
-        {
+        async Task<string> createSetupEmbeddedZip(string fullPackage, string releasesDir, string backgroundGif, string signingOpts, string setupIcon) {
             string tempPath;
 
             this.Log().Info("Building embedded zip file for Setup.exe");
@@ -579,8 +469,7 @@ namespace Squirrel.Update
             }
         }
 
-        static async Task signPEFile(string exePath, string signingOpts)
-        {
+        static async Task signPEFile(string exePath, string signingOpts) {
             // Try to find SignTool.exe
             var exe = @".\signtool.exe";
             if (!File.Exists(exe)) {
@@ -605,8 +494,7 @@ namespace Squirrel.Update
                 Console.WriteLine(processResult.Item2);
             }
         }
-        bool isPEFileSigned(string path)
-        {
+        bool isPEFileSigned(string path) {
 #if MONO
             return Path.GetExtension(path).Equals(".exe", StringComparison.OrdinalIgnoreCase);
 #else
@@ -619,8 +507,7 @@ namespace Squirrel.Update
 #endif
         }
 
-        async Task createExecutableStubForExe(string fullName)
-        {
+        async Task createExecutableStubForExe(string fullName) {
             var exe = Utility.FindHelperExecutable(@"StubExecutable.exe");
 
             var target = Path.Combine(
@@ -635,8 +522,7 @@ namespace Squirrel.Update
                 CancellationToken.None);
         }
 
-        static async Task setPEVersionInfoAndIcon(string exePath, IPackage package, string iconPath = null)
-        {
+        static async Task setPEVersionInfoAndIcon(string exePath, IPackage package, string iconPath = null) {
             var realExePath = Path.GetFullPath(exePath);
             var company = String.Join(",", package.Authors);
             var verStrings = new Dictionary<string, string>() {
@@ -668,119 +554,13 @@ namespace Squirrel.Update
             }
         }
 
-        static async Task createMsiPackage(string setupExe, IPackage package, bool packageAs64Bit)
-        {
-            var pathToWix = pathToWixTools();
-            var setupExeDir = Path.GetDirectoryName(setupExe);
-            var company = String.Join(",", package.Authors);
-
-            var culture = CultureInfo.GetCultureInfo(package.Language ?? "").TextInfo.ANSICodePage;
-
-
-            var templateText = File.ReadAllText(Path.Combine(pathToWix, "template.wxs"));
-            var templateData = new Dictionary<string, string> {
-                { "Id", package.Id },
-                { "Title", package.Title },
-                { "Author", company },
-                { "Version", Regex.Replace(package.Version.ToString(), @"-.*$", "") },
-                { "Summary", package.Summary ?? package.Description ?? package.Id },
-                { "Codepage", $"{culture}" },
-                { "Platform", packageAs64Bit ? "x64" : "x86" },
-                { "ProgramFilesFolder", packageAs64Bit ? "ProgramFiles64Folder" : "ProgramFilesFolder" },
-                { "Win64YesNo", packageAs64Bit ? "yes" : "no" }
-            };
-
-            // NB: We need some GUIDs that are based on the package ID, but unique (i.e.
-            // "Unique but consistent").
-            for (int i=1; i <= 10; i++) {
-                templateData[String.Format("IdAsGuid{0}", i)] = Utility.CreateGuidFromHash(String.Format("{0}:{1}", package.Id, i)).ToString();
-            }
-
-            var templateResult = CopStache.Render(templateText, templateData);
-
-            var wxsTarget = Path.Combine(setupExeDir, "Setup.wxs");
-            File.WriteAllText(wxsTarget, templateResult, Encoding.UTF8);
-
-            var candleParams = String.Format("-nologo -ext WixNetFxExtension -out \"{0}\" \"{1}\"", wxsTarget.Replace(".wxs", ".wixobj"), wxsTarget);
-            var processResult = await Utility.InvokeProcessAsync(
-                Path.Combine(pathToWix, "candle.exe"), candleParams, CancellationToken.None, setupExeDir);
-
-            if (processResult.Item1 != 0) {
-                var msg = String.Format(
-                    "Failed to compile WiX template, command invoked was: '{0} {1}'\n\nOutput was:\n{2}",
-                    "candle.exe", candleParams, processResult.Item2);
-
-                throw new Exception(msg);
-            }
-
-            var lightParams = String.Format("-ext WixNetFxExtension -sval -out \"{0}\" \"{1}\"", wxsTarget.Replace(".wxs", ".msi"), wxsTarget.Replace(".wxs", ".wixobj"));
-            processResult = await Utility.InvokeProcessAsync(
-                Path.Combine(pathToWix, "light.exe"), lightParams, CancellationToken.None, setupExeDir);
-
-            if (processResult.Item1 != 0) {
-                var msg = String.Format(
-                    "Failed to link WiX template, command invoked was: '{0} {1}'\n\nOutput was:\n{2}",
-                    "light.exe", lightParams, processResult.Item2);
-
-                throw new Exception(msg);
-            }
-
-            var toDelete = new[] {
-                wxsTarget,
-                wxsTarget.Replace(".wxs", ".wixobj"),
-                wxsTarget.Replace(".wxs", ".wixpdb"),
-            };
-
-            await Utility.ForEachAsync(toDelete, x => Utility.DeleteFileHarder(x));
-        }
-
-        static string pathToWixTools()
-        {
-            var ourPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
-            // Same Directory? (i.e. released)
-            if (File.Exists(Path.Combine(ourPath, "candle.exe"))) {
-                return ourPath;
-            }
-
-            // Debug Mode (i.e. in vendor)
-            var debugPath = Path.Combine(ourPath, "..", "..", "..", "vendor", "wix", "candle.exe");
-            if (File.Exists(debugPath)) {
-                return Path.GetFullPath(debugPath);
-            }
-
-            throw new Exception("WiX tools can't be found");
-        }
-
-        static string getAppNameFromDirectory(string path = null)
-        {
+        static string getAppNameFromDirectory(string path = null) {
             path = path ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             return (new DirectoryInfo(path)).Name;
         }
 
-        static ShortcutLocation? parseShortcutLocations(string shortcutArgs)
-        {
-            var ret = default(ShortcutLocation?);
-
-            if (!String.IsNullOrWhiteSpace(shortcutArgs)) {
-                var args = shortcutArgs.Split(new[] { ',' });
-
-                foreach (var arg in args) {
-                    var location = (ShortcutLocation)(Enum.Parse(typeof(ShortcutLocation), arg, false));
-                    if (ret.HasValue) {
-                        ret |= location;
-                    } else {
-                        ret = location;
-                    }
-                }
-            }
-
-            return ret;
-        }
-
         static int consoleCreated = 0;
-        static void ensureConsole()
-        {
+        static void ensureConsole() {
             if (Environment.OSVersion.Platform != PlatformID.Win32NT) return;
 
             if (Interlocked.CompareExchange(ref consoleCreated, 1, 0) == 1) return;
@@ -798,8 +578,7 @@ namespace Squirrel.Update
     {
         public event EventHandler<int> Progress;
 
-        public void Raise(int i)
-        {
+        public void Raise(int i) {
             if (Progress != null)
                 Progress.Invoke(this, i);
         }
@@ -811,9 +590,8 @@ namespace Squirrel.Update
         readonly object gate = 42;
         public Splat.LogLevel Level { get; set; }
 
-        public SetupLogLogger(bool saveInTemp, string commandSuffix = null)
-        {
-            for (int i=0; i < 10; i++) {
+        public SetupLogLogger(bool saveInTemp, string commandSuffix = null) {
+            for (int i = 0; i < 10; i++) {
                 try {
                     var dir = saveInTemp ?
                         Path.GetTempPath() :
@@ -832,8 +610,7 @@ namespace Squirrel.Update
             inner = Console.Error;
         }
 
-        public void Write(string message, LogLevel logLevel)
-        {
+        public void Write(string message, LogLevel logLevel) {
             if (logLevel < Level) {
                 return;
             }
@@ -841,8 +618,7 @@ namespace Squirrel.Update
             lock (gate) inner.WriteLine($"[{DateTime.Now.ToString("dd/MM/yy HH:mm:ss")}] {logLevel.ToString().ToLower()}: {message}");
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             lock (gate) {
                 inner.Flush();
                 inner.Dispose();

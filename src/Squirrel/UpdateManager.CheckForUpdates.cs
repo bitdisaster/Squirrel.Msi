@@ -1,11 +1,11 @@
-﻿using System;
+﻿using Splat;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using Splat;
 
 namespace Squirrel
 {
@@ -15,8 +15,7 @@ namespace Squirrel
         {
             readonly string rootAppDirectory;
 
-            public CheckForUpdateImpl(string rootAppDirectory)
-            {
+            public CheckForUpdateImpl(string rootAppDirectory) {
                 this.rootAppDirectory = rootAppDirectory;
             }
 
@@ -26,24 +25,24 @@ namespace Squirrel
                 string updateUrlOrPath,
                 bool ignoreDeltaUpdates = false,
                 Action<int> progress = null,
-                IFileDownloader urlDownloader = null)
-            {
+                IFileDownloader urlDownloader = null) {
                 progress = progress ?? (_ => { });
 
                 var localReleases = Enumerable.Empty<ReleaseEntry>();
-                var stagingId = intention == UpdaterIntention.Install ? null : getOrCreateStagedUserId();
+                var stagingId = getOrCreateStagedUserId();
 
-                bool shouldInitialize = intention == UpdaterIntention.Install;
+                bool shouldInitialize = false;
 
-                if (intention != UpdaterIntention.Install) {
+                if (File.Exists(localReleaseFile)) {
                     try {
                         localReleases = Utility.LoadLocalReleases(localReleaseFile);
-                    }
-                    catch (Exception ex) {
+                    } catch (Exception ex) {
                         // Something has gone pear-shaped, let's start from scratch
                         this.Log().WarnException("Failed to load local releases, starting from scratch", ex);
                         shouldInitialize = true;
                     }
+                } else {
+                    shouldInitialize = true;
                 }
 
                 if (shouldInitialize) await initializeClientAppDirectory();
@@ -136,8 +135,7 @@ namespace Squirrel
                 return ret;
             }
 
-            async Task initializeClientAppDirectory()
-            {
+            async Task initializeClientAppDirectory() {
                 // On bootstrap, we won't have any of our directories, create them
                 var pkgDir = Path.Combine(rootAppDirectory, "packages");
                 if (Directory.Exists(pkgDir)) {
@@ -147,8 +145,7 @@ namespace Squirrel
                 Directory.CreateDirectory(pkgDir);
             }
 
-            UpdateInfo determineUpdateInfo(UpdaterIntention intention, IEnumerable<ReleaseEntry> localReleases, IEnumerable<ReleaseEntry> remoteReleases, bool ignoreDeltaUpdates)
-            {
+            UpdateInfo determineUpdateInfo(UpdaterIntention intention, IEnumerable<ReleaseEntry> localReleases, IEnumerable<ReleaseEntry> remoteReleases, bool ignoreDeltaUpdates) {
                 var packageDirectory = Utility.PackageDirectoryForAppDir(rootAppDirectory);
                 localReleases = localReleases ?? Enumerable.Empty<ReleaseEntry>();
 
@@ -163,7 +160,7 @@ namespace Squirrel
                 if (latestFullRelease == currentRelease) {
                     this.Log().Info("No updates, remote and local are the same");
 
-                    var info = UpdateInfo.Create(currentRelease, new[] {latestFullRelease}, packageDirectory);
+                    var info = UpdateInfo.Create(currentRelease, new[] { latestFullRelease }, packageDirectory);
                     return info;
                 }
 
@@ -178,20 +175,20 @@ namespace Squirrel
                         this.Log().Warn("No local releases found, starting from scratch");
                     }
 
-                    return UpdateInfo.Create(null, new[] {latestFullRelease}, packageDirectory);
+                    return UpdateInfo.Create(null, new[] { latestFullRelease }, packageDirectory);
                 }
 
                 if (localReleases.Max(x => x.Version) > remoteReleases.Max(x => x.Version)) {
                     this.Log().Warn("hwhat, local version is greater than remote version");
-                    return UpdateInfo.Create(Utility.FindCurrentVersion(localReleases), new[] {latestFullRelease}, packageDirectory);
+                    return UpdateInfo.Create(Utility.FindCurrentVersion(localReleases), new[] { latestFullRelease }, packageDirectory);
                 }
 
                 return UpdateInfo.Create(currentRelease, remoteReleases, packageDirectory);
             }
 
-            internal Guid? getOrCreateStagedUserId()
-            {
-                var stagedUserIdFile = Path.Combine(rootAppDirectory, "packages", ".betaId");
+            internal Guid? getOrCreateStagedUserId() {
+                var packages = Path.Combine(rootAppDirectory, "packages");
+                var stagedUserIdFile = Path.Combine(packages, ".stagingId");
                 var ret = default(Guid);
 
                 try {
@@ -211,11 +208,15 @@ namespace Squirrel
 
                 ret = Utility.CreateGuidFromHash(buf);
                 try {
+                    if (!Directory.Exists(packages)) {
+                        Directory.CreateDirectory(packages);
+                    }
+
                     File.WriteAllText(stagedUserIdFile, ret.ToString(), Encoding.UTF8);
                     this.Log().Info("Generated new staging user ID: {0}", ret.ToString());
                     return ret;
                 } catch (Exception ex) {
-                    this.Log().WarnException("Couldn't write out staging user ID, this user probably shouldn't get beta anything", ex);
+                    this.Log().WarnException("Couldn't write out staging user ID, this user won't get an update till a 100% rollout", ex);
                     return null;
                 }
             }
