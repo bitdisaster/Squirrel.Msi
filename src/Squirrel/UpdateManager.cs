@@ -1,22 +1,16 @@
+using NuGet;
+using Splat;
+using Squirrel.Shell;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
-using System.Drawing;
-using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Reflection;
-using System.Security.AccessControl;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Win32;
-using NuGet;
-using Splat;
-using Squirrel.Shell;
 
 namespace Squirrel
 {
@@ -29,11 +23,10 @@ namespace Squirrel
 
         IDisposable updateLock;
 
-        public UpdateManager(string urlOrPath, 
+        public UpdateManager(string urlOrPath,
             string applicationName = null,
             string rootDirectory = null,
-            IFileDownloader urlDownloader = null)
-        {
+            IFileDownloader urlDownloader = null) {
             Contract.Requires(!String.IsNullOrEmpty(urlOrPath));
             Contract.Requires(!String.IsNullOrEmpty(applicationName));
 
@@ -49,32 +42,28 @@ namespace Squirrel
             this.rootAppDirectory = Path.Combine(rootDirectory ?? GetLocalAppDataDirectory(), this.applicationName);
         }
 
-        public async Task<UpdateInfo> CheckForUpdate(bool ignoreDeltaUpdates = false, Action<int> progress = null, UpdaterIntention intention = UpdaterIntention.Update)
-        {
+        public async Task<UpdateInfo> CheckForUpdate(bool ignoreDeltaUpdates = false, Action<int> progress = null, UpdaterIntention intention = UpdaterIntention.Update) {
             var checkForUpdate = new CheckForUpdateImpl(rootAppDirectory);
 
             await acquireUpdateLock();
             return await checkForUpdate.CheckForUpdate(intention, Utility.LocalReleaseFileForAppDir(rootAppDirectory), updateUrlOrPath, ignoreDeltaUpdates, progress, urlDownloader);
         }
 
-        public async Task DownloadReleases(IEnumerable<ReleaseEntry> releasesToDownload, Action<int> progress = null)
-        {
+        public async Task DownloadReleases(IEnumerable<ReleaseEntry> releasesToDownload, Action<int> progress = null) {
             var downloadReleases = new DownloadReleasesImpl(rootAppDirectory);
             await acquireUpdateLock();
 
             await downloadReleases.DownloadReleases(updateUrlOrPath, releasesToDownload, progress, urlDownloader);
         }
 
-        public async Task<string> ApplyReleases(UpdateInfo updateInfo, Action<int> progress = null)
-        {
+        public async Task<string> ApplyReleases(UpdateInfo updateInfo, Action<int> progress = null) {
             var applyReleases = new ApplyReleasesImpl(rootAppDirectory);
             await acquireUpdateLock();
 
             return await applyReleases.ApplyReleases(updateInfo, false, false, progress);
         }
 
-        public async Task FullInstall(bool silentInstall = false, Action<int> progress = null)
-        {
+        public async Task FullInstall(bool silentInstall = false, Action<int> progress = null) {
             var updateInfo = await CheckForUpdate(intention: UpdaterIntention.Install);
             await DownloadReleases(updateInfo.ReleasesToApply);
 
@@ -84,54 +73,34 @@ namespace Squirrel
             await applyReleases.ApplyReleases(updateInfo, silentInstall, true, progress);
         }
 
-        public async Task FullUninstall()
-        {
-            var applyReleases = new ApplyReleasesImpl(rootAppDirectory);
-            await acquireUpdateLock();
-
-            this.KillAllExecutablesBelongingToPackage();
-            await applyReleases.FullUninstall();
+        public Task FullUninstall() {
+            throw new NotImplementedException();
         }
 
-        public Task<RegistryKey> CreateUninstallerRegistryEntry(string uninstallCmd, string quietSwitch)
-        {
+        public void UpdateUninstallerVersionRegistryEntry() {
             var installHelpers = new InstallHelperImpl(applicationName, rootAppDirectory);
-            return installHelpers.CreateUninstallerRegistryEntry(uninstallCmd, quietSwitch);
+            installHelpers.UpdateUninstallRegisty();
         }
 
-        public Task<RegistryKey> CreateUninstallerRegistryEntry()
-        {
-            var installHelpers = new InstallHelperImpl(applicationName, rootAppDirectory);
-            return installHelpers.CreateUninstallerRegistryEntry();
+        public void RemoveUninstallerRegistryEntry() {
+            throw new NotImplementedException();
         }
 
-        public void RemoveUninstallerRegistryEntry()
-        {
-            var installHelpers = new InstallHelperImpl(applicationName, rootAppDirectory);
-            installHelpers.RemoveUninstallerRegistryEntry();
+        public void CreateShortcutsForExecutable(string exeName, ShortcutLocation locations, bool updateOnly, string programArguments = null, string icon = null) {
+            throw new NotImplementedException();
         }
 
-        public void CreateShortcutsForExecutable(string exeName, ShortcutLocation locations, bool updateOnly, string programArguments = null, string icon = null)
-        {
-            var installHelpers = new ApplyReleasesImpl(rootAppDirectory);
-            installHelpers.CreateShortcutsForExecutable(exeName, locations, updateOnly, programArguments, icon);
-        }
-
-        public Dictionary<ShortcutLocation, ShellLink> GetShortcutsForExecutable(string exeName, ShortcutLocation locations, string programArguments = null)
-        {
+        public Dictionary<ShortcutLocation, ShellLink> GetShortcutsForExecutable(string exeName, ShortcutLocation locations, string programArguments = null) {
             var installHelpers = new ApplyReleasesImpl(rootAppDirectory);
             return installHelpers.GetShortcutsForExecutable(exeName, locations, programArguments);
         }
 
 
-        public void RemoveShortcutsForExecutable(string exeName, ShortcutLocation locations)
-        {
-            var installHelpers = new ApplyReleasesImpl(rootAppDirectory);
-            installHelpers.RemoveShortcutsForExecutable(exeName, locations);
+        public void RemoveShortcutsForExecutable(string exeName, ShortcutLocation locations) {
+            throw new NotImplementedException();
         }
 
-        public SemanticVersion CurrentlyInstalledVersion(string executable = null)
-        {
+        public SemanticVersion CurrentlyInstalledVersion(string executable = null) {
             executable = executable ??
                 Path.GetDirectoryName(typeof(UpdateManager).Assembly.Location);
 
@@ -146,8 +115,7 @@ namespace Squirrel
             return appDirName.ToSemanticVersion();
         }
 
-        public void KillAllExecutablesBelongingToPackage()
-        {
+        public void KillAllExecutablesBelongingToPackage() {
             var installHelpers = new InstallHelperImpl(applicationName, rootAppDirectory);
             installHelpers.KillAllProcessesBelongingToPackage();
         }
@@ -164,8 +132,7 @@ namespace Squirrel
             get { return Assembly.GetExecutingAssembly().Location.StartsWith(RootAppDirectory, StringComparison.OrdinalIgnoreCase); }
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             var disp = Interlocked.Exchange(ref updateLock, null);
             if (disp != null) {
                 disp.Dispose();
@@ -173,8 +140,7 @@ namespace Squirrel
         }
 
         static bool exiting = false;
-        public static void RestartApp(string exeToStart = null, string arguments = null)
-        { 
+        public static void RestartApp(string exeToStart = null, string arguments = null) {
             // NB: Here's how this method works:
             //
             // 1. We're going to pass the *name* of our EXE and the params to 
@@ -201,9 +167,8 @@ namespace Squirrel
             Thread.Sleep(500);
             Environment.Exit(0);
         }
-        
-        public static async Task<Process> RestartAppWhenExited(string exeToStart = null, string arguments = null)
-        { 
+
+        public static async Task<Process> RestartAppWhenExited(string exeToStart = null, string arguments = null) {
             // NB: Here's how this method works:
             //
             // 1. We're going to pass the *name* of our EXE and the params to 
@@ -224,12 +189,11 @@ namespace Squirrel
             var updateProcess = Process.Start(getUpdateExe(), String.Format("--processStartAndWait {0} {1}", exeToStart, argsArg));
 
             await Task.Delay(500);
-            
+
             return updateProcess;
         }
 
-        public static string GetLocalAppDataDirectory(string assemblyLocation = null)
-        {
+        public static string GetLocalAppDataDirectory(string assemblyLocation = null) {
             // Try to divine our our own install location via reading tea leaves
             //
             // * We're Update.exe, running in the app's install folder
@@ -255,15 +219,13 @@ namespace Squirrel
             return Path.GetFullPath(twoFoldersUpFromAppFolder);
         }
 
-        ~UpdateManager()
-        {
+        ~UpdateManager() {
             if (updateLock != null && !exiting) {
                 throw new Exception("You must dispose UpdateManager!");
             }
         }
 
-        Task<IDisposable> acquireUpdateLock()
-        {
+        Task<IDisposable> acquireUpdateLock() {
             if (updateLock != null) return Task.FromResult(updateLock);
 
             return Task.Run(() => {
@@ -272,7 +234,7 @@ namespace Squirrel
                 IDisposable theLock;
                 try {
                     theLock = ModeDetector.InUnitTestRunner() ?
-                        Disposable.Create(() => {}) : new SingleGlobalInstance(key, TimeSpan.FromMilliseconds(2000));
+                        Disposable.Create(() => { }) : new SingleGlobalInstance(key, TimeSpan.FromMilliseconds(2000));
                 } catch (TimeoutException) {
                     throw new TimeoutException("Couldn't acquire update lock, another instance may be running updates");
                 }
@@ -287,14 +249,12 @@ namespace Squirrel
             });
         }
 
-        static string getApplicationName()
-        {
+        static string getApplicationName() {
             var fi = new FileInfo(getUpdateExe());
             return fi.Directory.Name;
         }
 
-        static string getUpdateExe()
-        {
+        static string getUpdateExe() {
             var assembly = Assembly.GetEntryAssembly();
 
             // Are we update.exe?

@@ -1,19 +1,17 @@
+using NuGet;
+using Splat;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Win32;
-using Splat;
-using NuGet;
 
 namespace Squirrel
 {
     [Flags]
-    public enum ShortcutLocation {
+    public enum ShortcutLocation
+    {
         StartMenu = 1 << 0,
         Desktop = 1 << 1,
         Startup = 1 << 2,
@@ -23,7 +21,8 @@ namespace Squirrel
         AppRoot = 1 << 3
     }
 
-    public enum UpdaterIntention {
+    public enum UpdaterIntention
+    {
         Install,
         Update
     }
@@ -95,20 +94,10 @@ namespace Squirrel
         SemanticVersion CurrentlyInstalledVersion(string executable = null);
 
         /// <summary>
-        /// Creates an entry in Programs and Features based on the currently 
-        /// applied package
+        /// Updates the version number in the Unistall Registry Key
         /// </summary>
-        /// <param name="uninstallCmd">The command to run to uninstall, usually update.exe --uninstall</param>
-        /// <param name="quietSwitch">The switch for silent uninstall, usually --silent</param>
-        /// <returns>The registry key that was created</returns>
-        Task<RegistryKey> CreateUninstallerRegistryEntry(string uninstallCmd, string quietSwitch);
-
-        /// <summary>
-        /// Creates an entry in Programs and Features based on the currently 
-        /// applied package. Uses the built-in Update.exe to handle uninstall.
-        /// </summary>
-        /// <returns>The registry key that was created</returns>
-        Task<RegistryKey> CreateUninstallerRegistryEntry();
+        /// <returns></returns>
+        void UpdateUninstallerVersionRegistryEntry();
 
         /// <summary>
         /// Removes the entry in Programs and Features created via 
@@ -142,9 +131,8 @@ namespace Squirrel
 
     public static class EasyModeMixin
     {
-        public static async Task<ReleaseEntry> UpdateApp(this IUpdateManager This, Action<int> progress = null)
-        {
-            progress = progress ?? (_ => {});
+        public static async Task<ReleaseEntry> UpdateApp(this IUpdateManager This, Action<int> progress = null) {
+            progress = progress ?? (_ => { });
             This.Log().Info("Starting automatic update");
 
             bool ignoreDeltaUpdates = false;
@@ -164,8 +152,8 @@ namespace Squirrel
                     This.ApplyReleases(updateInfo, x => progress(x / 3 + 66)),
                     "Failed to apply updates");
 
-                await This.ErrorIfThrows(() => 
-                    This.CreateUninstallerRegistryEntry(),
+                This.ErrorIfThrows(() =>
+                    This.UpdateUninstallerVersionRegistryEntry(),
                     "Failed to set up uninstaller");
             } catch {
                 if (ignoreDeltaUpdates == false) {
@@ -181,17 +169,15 @@ namespace Squirrel
                 default(ReleaseEntry);
         }
 
-        public static void CreateShortcutForThisExe(this IUpdateManager This)
-        {
+        public static void CreateShortcutForThisExe(this IUpdateManager This) {
             This.CreateShortcutsForExecutable(Path.GetFileName(
                 Assembly.GetEntryAssembly().Location),
-                ShortcutLocation.Desktop | ShortcutLocation.StartMenu, 
+                ShortcutLocation.Desktop | ShortcutLocation.StartMenu,
                 Environment.CommandLine.Contains("squirrel-install") == false,
                 null, null);
         }
 
-        public static void RemoveShortcutForThisExe(this IUpdateManager This)
-        {
+        public static void RemoveShortcutForThisExe(this IUpdateManager This) {
             This.RemoveShortcutsForExecutable(
                 Path.GetFileName(Assembly.GetEntryAssembly().Location),
                 ShortcutLocation.Desktop | ShortcutLocation.StartMenu);

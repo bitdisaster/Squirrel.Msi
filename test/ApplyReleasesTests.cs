@@ -131,43 +131,43 @@ namespace Squirrel.Tests
             }
         }
 
-        [Fact]
-        public async Task FullUninstallRemovesAllVersions()
-        {
-            string tempDir;
-            string remotePkgDir;
+        //[Fact]
+        //public async Task FullUninstallRemovesAllVersions()
+        //{
+        //    string tempDir;
+        //    string remotePkgDir;
 
-            using (Utility.WithTempDirectory(out tempDir))
-            using (Utility.WithTempDirectory(out remotePkgDir)) {
-                IntegrationTestHelper.CreateFakeInstalledApp("0.1.0", remotePkgDir);
-                var pkgs = ReleaseEntry.BuildReleasesFile(remotePkgDir);
-                ReleaseEntry.WriteReleaseFile(pkgs, Path.Combine(remotePkgDir, "RELEASES"));
+        //    using (Utility.WithTempDirectory(out tempDir))
+        //    using (Utility.WithTempDirectory(out remotePkgDir)) {
+        //        IntegrationTestHelper.CreateFakeInstalledApp("0.1.0", remotePkgDir);
+        //        var pkgs = ReleaseEntry.BuildReleasesFile(remotePkgDir);
+        //        ReleaseEntry.WriteReleaseFile(pkgs, Path.Combine(remotePkgDir, "RELEASES"));
 
-                using (var fixture = new UpdateManager(remotePkgDir, "theApp", tempDir)) {
-                    await fixture.FullInstall();
-                }
+        //        using (var fixture = new UpdateManager(remotePkgDir, "theApp", tempDir)) {
+        //            await fixture.FullInstall();
+        //        }
 
-                await Task.Delay(1000);
+        //        await Task.Delay(1000);
 
-                IntegrationTestHelper.CreateFakeInstalledApp("0.2.0", remotePkgDir);
-                pkgs = ReleaseEntry.BuildReleasesFile(remotePkgDir);
-                ReleaseEntry.WriteReleaseFile(pkgs, Path.Combine(remotePkgDir, "RELEASES"));
+        //        IntegrationTestHelper.CreateFakeInstalledApp("0.2.0", remotePkgDir);
+        //        pkgs = ReleaseEntry.BuildReleasesFile(remotePkgDir);
+        //        ReleaseEntry.WriteReleaseFile(pkgs, Path.Combine(remotePkgDir, "RELEASES"));
 
-                using (var fixture = new UpdateManager(remotePkgDir, "theApp", tempDir)) {
-                    await fixture.UpdateApp();
-                }
+        //        using (var fixture = new UpdateManager(remotePkgDir, "theApp", tempDir)) {
+        //            await fixture.UpdateApp();
+        //        }
 
-                await Task.Delay(1000);
+        //        await Task.Delay(1000);
 
-                using (var fixture = new UpdateManager(remotePkgDir, "theApp", tempDir)) {
-                    await fixture.FullUninstall();
-                }
+        //        using (var fixture = new UpdateManager(remotePkgDir, "theApp", tempDir)) {
+        //            await fixture.FullUninstall();
+        //        }
 
-                Assert.False(File.Exists(Path.Combine(tempDir, "theApp", "app-0.1.0", "args.txt")));
-                Assert.False(File.Exists(Path.Combine(tempDir, "theApp", "app-0.2.0", "args.txt")));
-                Assert.True(File.Exists(Path.Combine(tempDir, "theApp", ".dead")));
-            }
-        }
+        //        Assert.False(File.Exists(Path.Combine(tempDir, "theApp", "app-0.1.0", "args.txt")));
+        //        Assert.False(File.Exists(Path.Combine(tempDir, "theApp", "app-0.2.0", "args.txt")));
+        //        Assert.True(File.Exists(Path.Combine(tempDir, "theApp", ".dead")));
+        //    }
+        //}
 
         [Fact]
         public void WhenNoNewReleasesAreAvailableTheListIsEmpty()
@@ -445,31 +445,31 @@ namespace Squirrel.Tests
             }
         }
 
-        [Fact]
-        public async Task CreateShortcutsRoundTrip()
-        {
-            string remotePkgPath;
-            string path;
+        //[Fact]
+        //public async Task CreateShortcutsRoundTrip()
+        //{
+        //    string remotePkgPath;
+        //    string path;
 
-            using (Utility.WithTempDirectory(out path)) {
-                using (Utility.WithTempDirectory(out remotePkgPath))
-                using (var mgr = new UpdateManager(remotePkgPath, "theApp", path)) {
-                    IntegrationTestHelper.CreateFakeInstalledApp("1.0.0.1", remotePkgPath);
-                    await mgr.FullInstall();
-                }
+        //    using (Utility.WithTempDirectory(out path)) {
+        //        using (Utility.WithTempDirectory(out remotePkgPath))
+        //        using (var mgr = new UpdateManager(remotePkgPath, "theApp", path)) {
+        //            IntegrationTestHelper.CreateFakeInstalledApp("1.0.0.1", remotePkgPath);
+        //            await mgr.FullInstall();
+        //        }
 
-                var fixture = new UpdateManager.ApplyReleasesImpl(Path.Combine(path, "theApp"));
-                fixture.CreateShortcutsForExecutable("SquirrelAwareApp.exe", ShortcutLocation.Desktop | ShortcutLocation.StartMenu | ShortcutLocation.Startup | ShortcutLocation.AppRoot, false, null, null);
+        //        var fixture = new UpdateManager.ApplyReleasesImpl(Path.Combine(path, "theApp"));
+        //        fixture.CreateShortcutsForExecutable("SquirrelAwareApp.exe", ShortcutLocation.Desktop | ShortcutLocation.StartMenu | ShortcutLocation.Startup | ShortcutLocation.AppRoot, false, null, null);
 
-                // NB: COM is Weird.
-                Thread.Sleep(1000);
-                fixture.RemoveShortcutsForExecutable("SquirrelAwareApp.exe", ShortcutLocation.Desktop | ShortcutLocation.StartMenu | ShortcutLocation.Startup | ShortcutLocation.AppRoot);
+        //        // NB: COM is Weird.
+        //        Thread.Sleep(1000);
+        //        fixture.RemoveShortcutsForExecutable("SquirrelAwareApp.exe", ShortcutLocation.Desktop | ShortcutLocation.StartMenu | ShortcutLocation.Startup | ShortcutLocation.AppRoot);
 
-                // NB: Squirrel-Aware first-run might still be running, slow
-                // our roll before blowing away the temp path
-                Thread.Sleep(1000);
-            }
-        }
+        //        // NB: Squirrel-Aware first-run might still be running, slow
+        //        // our roll before blowing away the temp path
+        //        Thread.Sleep(1000);
+        //    }
+        //}
         
         [Fact]
         public void UnshimOurselvesSmokeTest()

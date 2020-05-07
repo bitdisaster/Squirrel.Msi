@@ -18,40 +18,40 @@ namespace Squirrel.Tests
     {
         public class CreateUninstallerRegKeyTests
         {
-            [Fact]
-            public async Task CallingMethodTwiceShouldUpdateInstaller()
-            {
-                string remotePkgPath;
-                string path;
+            //[Fact]
+            //public async Task CallingMethodTwiceShouldUpdateInstaller()
+            //{
+            //    string remotePkgPath;
+            //    string path;
 
-                using (Utility.WithTempDirectory(out path)) {
-                    using (Utility.WithTempDirectory(out remotePkgPath))
-                    using (var mgr = new UpdateManager(remotePkgPath, "theApp", path)) {
-                        IntegrationTestHelper.CreateFakeInstalledApp("1.0.0.1", remotePkgPath);
-                        await mgr.FullInstall();
-                    }
+            //    using (Utility.WithTempDirectory(out path)) {
+            //        using (Utility.WithTempDirectory(out remotePkgPath))
+            //        using (var mgr = new UpdateManager(remotePkgPath, "theApp", path)) {
+            //            IntegrationTestHelper.CreateFakeInstalledApp("1.0.0.1", remotePkgPath);
+            //            await mgr.FullInstall();
+            //        }
 
-                    using (var mgr = new UpdateManager("http://lol", "theApp", path)) {
-                        await mgr.CreateUninstallerRegistryEntry();
-                        var regKey = await mgr.CreateUninstallerRegistryEntry();
+            //        using (var mgr = new UpdateManager("http://lol", "theApp", path)) {
+            //            await mgr.CreateUninstallerRegistryEntry();
+            //            var regKey = await mgr.CreateUninstallerRegistryEntry();
 
-                        Assert.False(String.IsNullOrWhiteSpace((string)regKey.GetValue("DisplayName")));
+            //            Assert.False(String.IsNullOrWhiteSpace((string)regKey.GetValue("DisplayName")));
 
-                        mgr.RemoveUninstallerRegistryEntry();
-                    }
+            //            mgr.RemoveUninstallerRegistryEntry();
+            //        }
 
-                    // NB: Squirrel-Aware first-run might still be running, slow
-                    // our roll before blowing away the temp path
-                    Thread.Sleep(1000);
-                }
+            //        // NB: Squirrel-Aware first-run might still be running, slow
+            //        // our roll before blowing away the temp path
+            //        Thread.Sleep(1000);
+            //    }
 
-                var key = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
-                    .OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall");
+            //    var key = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default)
+            //        .OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall");
 
-                using (key) {
-                    Assert.False(key.GetSubKeyNames().Contains("theApp"));
-                }
-            }
+            //    using (key) {
+            //        Assert.False(key.GetSubKeyNames().Contains("theApp"));
+            //    }
+            //}
         }
 
         public class UpdateLocalReleasesTests
