@@ -25,12 +25,6 @@ namespace Squirrel.Update
         static StartupOption opt;
 
         public static int Main(string[] args) {
-            //  var appName = getAppNameFromDirectory("C:\\Program Files (x86)\\HelloWix");
-
-            // var mgr = new UpdateManager("http://localhost", appName, "C:\\Program Files (x86)");
-            //mgr.CreateUninstallerRegistryEntry();
-
-
             var pg = new Program();
             try {
                 return pg.main(args);
@@ -139,6 +133,19 @@ namespace Squirrel.Update
         public async Task Update(string updateUrl, string appName = null) {
             appName = appName ?? getAppNameFromDirectory();
 
+            var installInfoFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), ".installInfo.json");
+            var installInfo = Utility.GetInstallInfo(installInfoFile);
+            var isAutoUpdateOn = false;
+            if (installInfo.Success) {
+                isAutoUpdateOn = Utility.IsAutoUpdateEnabled(installInfo.Manufacturer, installInfo.AppName, installInfo.Arch);
+            }
+
+            if(!isAutoUpdateOn) {
+                this.Log().Warn("Auto-Update is disabled. Aborting update process.");
+                Console.WriteLine(100);
+                return;
+            }
+
             this.Log().Info("Starting update, downloading from " + updateUrl);
 
             using (var mgr = new UpdateManager(updateUrl, appName)) {
@@ -205,23 +212,32 @@ namespace Squirrel.Update
         }
 
         public async Task<string> CheckForUpdate(string updateUrl, string appName = null) {
+            var installInfoFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), ".installInfo.json");
+            var installInfo = Utility.GetInstallInfo(installInfoFile);
+            var isAutoUpdateOn = false;
+            if (installInfo.Success) {
+                isAutoUpdateOn = Utility.IsAutoUpdateEnabled(installInfo.Manufacturer, installInfo.AppName, installInfo.Arch);
+            }
             appName = appName ?? getAppNameFromDirectory();
 
             this.Log().Info("Fetching update information, downloading from " + updateUrl);
             using (var mgr = new UpdateManager(updateUrl, appName)) {
                 var updateInfo = await mgr.CheckForUpdate(intention: UpdaterIntention.Update, progress: x => Console.WriteLine(x));
                 var releaseNotes = updateInfo.FetchReleaseNotes();
-                var currentVersion = ensureCurrentVersion(updateInfo.CurrentlyInstalledVersion);
-
-                var sanitizedUpdateInfo = new {
-                    currentVersion = currentVersion.ToString(),
-                    futureVersion = updateInfo.FutureReleaseEntry.Version.ToString(),
+                var currentVersion = ensureCurrentVersion(updateInfo.CurrentlyInstalledVersion, installInfo.InstallVersion);
+                object releasesToApply = new object[0];
+                if (isAutoUpdateOn) {
                     releasesToApply = updateInfo.ReleasesToApply
                         .Where(x => x.Version > currentVersion)
                         .Select(x => new {
                             version = x.Version.ToString(),
                             releaseNotes = releaseNotes.ContainsKey(x) ? releaseNotes[x] : "",
-                        }).ToArray(),
+                        }).ToArray();
+                }
+                var sanitizedUpdateInfo = new {
+                    currentVersion = currentVersion.ToString(),
+                    futureVersion = updateInfo.FutureReleaseEntry.Version.ToString(),
+                    releasesToApply
                 };
 
                 return SimpleJson.SerializeObject(sanitizedUpdateInfo);
@@ -355,7 +371,7 @@ namespace Squirrel.Update
             opt.WriteOptionDescriptions();
         }
 
-        SemanticVersion ensureCurrentVersion(ReleaseEntry currentlyInstalledVersion) {
+        SemanticVersion ensureCurrentVersion(ReleaseEntry currentlyInstalledVersion, string installInfoVersion) {
             var currentVersionString = currentlyInstalledVersion?.Version != null ? currentlyInstalledVersion.Version.ToString() : "0.0.0";
             if (currentVersionString == "0.0.0") {
                 this.Log().Info("ensureCurrentVersion: No locally installed release package found. This is likely the first update of an MSI install. Looking for latest version via App folder name.");
@@ -386,16 +402,11 @@ namespace Squirrel.Update
             // If we still have no version then lets look into the installInfo file. This should not happen btw.
             if (currentVersionString == "0.0.0") {
                 this.Log().Warn("ensureCurrentVersion: No local release package found and version retrieval via App folder naming failed. Looking for version in MSI installInfo file.");
-                var installInfoFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), ".installInfo.json");
-                if (File.Exists(installInfoFile)) {
-                    try {
-                        dynamic x = SimpleJson.DeserializeObject(File.ReadAllText(installInfoFile));
-                        currentVersionString = x.baseVersion;
-                    } catch (Exception ex) {
-                        this.Log().ErrorException("ensureCurrentVersion: Failed to read version from installInfo file. Gonna report version 0.0.0", ex);
-                    }
+                SemanticVersion _;
+                if (SemanticVersion.TryParse(installInfoVersion, out _)) {
+                    currentVersionString = installInfoVersion;
                 } else {
-                    this.Log().Warn("ensureCurrentVersion: installInfo file not found. Gonna report version 0.0.0");
+                    this.Log().Warn("ensureCurrentVersion: No valid version found in installInfo file. Gonna report version 0.0.0");
                 }
             }
 

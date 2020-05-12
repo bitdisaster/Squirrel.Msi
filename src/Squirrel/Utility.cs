@@ -1,4 +1,5 @@
-﻿using NuGet;
+﻿using Microsoft.Win32;
+using NuGet;
 using Splat;
 using System;
 using System.Collections.Concurrent;
@@ -712,17 +713,50 @@ namespace Squirrel
             guid[right] = temp;
         }
 
-        public static Tuple<bool, dynamic> GetInstallInfo(string installInfoFile) {
+        public static (bool Success, string InstallVersion, string ProductCode, string Manufacturer, string AppName, string Arch) GetInstallInfo(string installInfoFile) {
             if (File.Exists(installInfoFile)) {
                 try {
-                    return new Tuple<bool, dynamic>(true, Json.SimpleJson.DeserializeObject(File.ReadAllText(installInfoFile)));
+                    dynamic installInfoResult = Json.SimpleJson.DeserializeObject(File.ReadAllText(installInfoFile));
+                    var InstallVersion = installInfoResult.installVersion as string;
+                    var ProductCode = installInfoResult.productCode as string;
+                    var Manufacturer = installInfoResult.manufacturer as string;
+                    var AppName = installInfoResult.appName as string;
+                    var Arch = installInfoResult.arch == "x86" ? "x86" : "x64";
+                    return (true, InstallVersion, ProductCode, Manufacturer, AppName, Arch);
                 } catch (Exception ex) {
                     Log().ErrorException("GetInstallInfo: Failed to read installInfo file", ex);
                 }
             } else {
                 Log().Error($"GetInstallInfo: installInfo file not found. {installInfoFile}");
             }
-            return new Tuple<bool, dynamic>(false, null);
+            return (false, "", "", "", "", "");
+        }
+
+        public static bool IsAutoUpdateEnabled(string msiManufacturer, string msiAppName, string arch) {
+            var keyPath = $"Software\\{msiManufacturer}\\{msiAppName}";
+            try {
+                var hive = RegistryHive.LocalMachine;
+                var view = arch == "x86" ? RegistryView.Registry32 : RegistryView.Registry64;
+                var regKey = RegistryKey.OpenBaseKey(hive, view)
+                    .OpenSubKey(keyPath, false);
+                if (regKey != null) {
+                    var autoUpdateSetting = regKey.GetValue("AutoUpdate"); 
+                    var isAutoUpdatingOn = autoUpdateSetting != null && autoUpdateSetting.ToString() == "1";
+                    if (isAutoUpdatingOn) {
+                        Log().Info("IsAutoUpdateEnabled: AutoUpdate key exists and is 1. AutoUpdating enabled.");
+                    } else {
+                        Log().Info("IsAutoUpdateEnabled: AutoUpdate key exists but is not 1. AutoUpdating disabled.");
+                    }
+                    return isAutoUpdatingOn;
+                } else {
+                    Log().Info("IsAutoUpdateEnabled: AutoUpdate key does not exist. AutoUpdating disabled.");
+                }
+
+            } catch (Exception ex) {
+                Log().ErrorException("IsAutoUpdateEnabled: Failed to read AutoUpdate registry key. AutoUpdating disabled.", ex);
+            }
+
+            return false;
         }
     }
 
