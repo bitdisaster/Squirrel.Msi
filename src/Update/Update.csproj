@@ -12,6 +12,8 @@
     <Authors>Jan Hannemann</Authors>
     <Product>MSQ</Product>
     <PackageId>Update</PackageId>
+    <ApplicationIcon />
+    <StartupObject />
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,6 +29,7 @@
 
   <ItemGroup>
     <PackageReference Include="Splat" Version="1.6.2.0" />
+    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
     <PackageReference Include="WpfAnimatedGif" Version="1.4.15.0" />
   </ItemGroup>
 

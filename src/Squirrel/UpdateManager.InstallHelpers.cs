@@ -32,11 +32,11 @@ namespace Squirrel
 
                 var installInfoFile = Path.Combine(this.rootAppDirectory, ".installInfo.json");
                 var installInfoResult = Utility.GetInstallInfo(installInfoFile);
-                if (installInfoResult.Item1) {
-                    var verion = installInfoResult.Item2.installVersion as string;
-                    var productCode = installInfoResult.Item2.productCode as string;
-                    var appName = installInfoResult.Item2.appName as string;
-                    var arch = installInfoResult.Item2.arch == "x86" ? "x86" : "x64";
+                if (installInfoResult.Success) {
+                    var verion = installInfoResult.InstallVersion as string;
+                    var productCode = installInfoResult.ProductCode as string;
+                    var appName = installInfoResult.AppName as string;
+                    var arch = installInfoResult.Arch == "x86" ? "x86" : "x64";
                     var key = GetUninstallRegKey(productCode, appName, arch);
                     if (key != null) {
                         try {
