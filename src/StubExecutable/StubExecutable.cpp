@@ -67,6 +67,38 @@ std::wstring FindLatestAppDir()
 
 		version::Semver200_version thisVer(s);
 
+		// Special handling for versions with same major.minor.patch
+		if (thisVer.major() == acc.major() && 
+		    thisVer.minor() == acc.minor() && 
+		    thisVer.patch() == acc.patch()) {
+			
+			// Check if both versions have build metadata
+			if (!thisVer.build().empty() && !acc.build().empty()) {
+				// Instead of just comparing the first digit, compare entire build strings as numbers
+				try {
+					// Parse build numbers as integers (assuming they're numeric)
+					int thisBuild = std::stoi(thisVer.build());
+					int accBuild = std::stoi(acc.build());
+					
+					// If this build number is higher, use this version
+					if (thisBuild > accBuild) {
+						acc = thisVer;
+						acc_s = appVer;
+					}
+					
+					// Skip to next iteration since we've handled the comparison
+					continue;
+				}
+				catch (const std::invalid_argument&) {
+					// If build isn't a valid number, fall back to standard semver comparison
+				}
+				catch (const std::out_of_range&) {
+					// If build number is too large, fall back to standard semver comparison
+				}
+			}
+		}
+		
+		// Standard semver comparison for different versions
 		if (thisVer > acc) {
 			acc = thisVer;
 			acc_s = appVer;
